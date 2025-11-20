@@ -14,7 +14,7 @@ pipeline {
 
         stage('Setup') {
             steps {
-                bat 'npm install'
+                bat 'npm install --legacy-peer-deps'
             }
         }
 
@@ -54,6 +54,10 @@ pipeline {
                 for /f "tokens=*" %%i in ('docker ps -a -q --filter "ancestor=react-weather-app:latest"') do docker rm %%i
                 '''
             }
+        }
+    }
+}
+
         }
     }
 }
