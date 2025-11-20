@@ -14,33 +14,28 @@ pipeline {
 
         stage('Setup') {
             steps {
-                sh 'npm install'
+                bat 'npm install'
             }
         }
 
         stage('Build') {
             steps {
-                sh 'npm run build'
+                bat 'npm run build'
             }
         }
 
         stage('Run Docker') {
             steps {
-                sh 'docker build -t react-weather-app:latest .'
-                sh 'docker run -d -p 3000:80 react-weather-app:latest'
+                bat 'docker build -t react-weather-app:latest .'
+                bat 'docker run -d -p 3000:80 react-weather-app:latest'
             }
         }
 
         stage('Smoke Test') {
             steps {
-                sh '''
-                STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000)
-                if [ "$STATUS" -eq 200 ]; then
-                  echo "Smoke Test Passed"
-                else
-                  echo "Smoke Test Failed"
-                  exit 1
-                fi
+                // Test HTTP avec PowerShell pour Windows
+                bat '''
+                powershell -Command "$status = (Invoke-WebRequest -Uri http://localhost:3000 -UseBasicParsing).StatusCode; if ($status -eq 200) { Write-Host 'Smoke Test Passed' } else { Write-Host 'Smoke Test Failed'; exit 1 }"
                 '''
             }
         }
@@ -53,8 +48,11 @@ pipeline {
 
         stage('Cleanup') {
             steps {
-                sh 'docker stop $(docker ps -q --filter ancestor=react-weather-app:latest) || true'
-                sh 'docker rm $(docker ps -a -q --filter ancestor=react-weather-app:latest) || true'
+                // Arrêter et supprimer les containers Docker sous Windows
+                bat '''
+                for /f "tokens=*" %%i in ('docker ps -q --filter "ancestor=react-weather-app:latest"') do docker stop %%i
+                for /f "tokens=*" %%i in ('docker ps -a -q --filter "ancestor=react-weather-app:latest"') do docker rm %%i
+                '''
             }
         }
     }
