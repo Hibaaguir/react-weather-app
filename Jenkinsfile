@@ -33,9 +33,8 @@ pipeline {
 
         stage('Smoke Test') {
             steps {
-                // Test HTTP avec PowerShell pour Windows
                 bat '''
-                powershell -Command "$status = (Invoke-WebRequest -Uri http://localhost:3000 -UseBasicParsing).StatusCode; if ($status -eq 200) { Write-Host 'Smoke Test Passed' } else { Write-Host 'Smoke Test Failed'; exit 1 }"
+powershell -Command "$status = (Invoke-WebRequest -Uri http://localhost:3000 -UseBasicParsing).StatusCode; if ($status -eq 200) { Write-Host 'Smoke Test Passed' } else { Write-Host 'Smoke Test Failed'; exit 1 }"
                 '''
             }
         }
@@ -48,16 +47,11 @@ pipeline {
 
         stage('Cleanup') {
             steps {
-                // Arrêter et supprimer les containers Docker sous Windows
                 bat '''
-                for /f "tokens=*" %%i in ('docker ps -q --filter "ancestor=react-weather-app:latest"') do docker stop %%i
-                for /f "tokens=*" %%i in ('docker ps -a -q --filter "ancestor=react-weather-app:latest"') do docker rm %%i
+for /f "tokens=*" %%i in ('docker ps -q --filter "ancestor=react-weather-app:latest"') do docker stop %%i
+for /f "tokens=*" %%i in ('docker ps -a -q --filter "ancestor=react-weather-app:latest"') do docker rm %%i
                 '''
             }
         }
     }
-}
-
-        }
-    }
-}
+} // <- fermeture finale du pipeline
