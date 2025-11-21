@@ -6,8 +6,10 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
+                deleteDir()  // Nettoyage workspace
                 git branch: 'dev', url: 'https://github.com/Hibaaguir/react-weather-app.git'
             }
         }
@@ -15,6 +17,8 @@ pipeline {
         stage('Setup') {
             steps {
                 bat 'npm install --legacy-peer-deps'
+                bat 'npm install axios'   // AJOUT NECESSAIRE
+                bat 'npx update-browserslist-db@latest --force'
             }
         }
 
@@ -26,8 +30,8 @@ pipeline {
 
         stage('Run Docker') {
             steps {
-                bat 'docker build -t react-weather-app:latest .'
-                bat 'docker run -d -p 3000:80 react-weather-app:latest'
+                bat "docker build -t ${APP_NAME}:latest ."
+                bat "docker run -d -p 3000:80 ${APP_NAME}:latest"
             }
         }
 
@@ -54,4 +58,4 @@ for /f "tokens=*" %%i in ('docker ps -a -q --filter "ancestor=react-weather-app:
             }
         }
     }
-} // <- fermeture finale du pipeline
+}
