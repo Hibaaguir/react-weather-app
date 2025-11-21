@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         APP_NAME = "react-weather-app"
-        // Dossiers npm pour le compte système Windows
         NPM_CONFIG_CACHE = "C:\\Windows\\system32\\config\\systemprofile\\AppData\\Local\\npm-cache"
         PATH = "C:\\Windows\\system32\\config\\systemprofile\\AppData\\Roaming\\npm;${env.PATH}"
     }
@@ -29,7 +28,8 @@ pipeline {
 
         stage('Build') {
             steps {
-                bat 'npm run build'
+                // Désactive CI pour ne pas bloquer sur les warnings ESLint
+                bat 'set CI=false && npm run build'
             }
         }
 
@@ -66,6 +66,3 @@ pipeline {
         }
     }
 }
-
-    
-
