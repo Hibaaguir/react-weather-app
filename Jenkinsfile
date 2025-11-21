@@ -17,7 +17,7 @@ pipeline {
         stage('Setup') {
             steps {
                 bat 'npm install --legacy-peer-deps'
-                bat 'npm install axios'   // AJOUT NECESSAIRE
+                bat 'npm install axios --legacy-peer-deps'
                 bat 'npx update-browserslist-db@latest --force'
             }
         }
