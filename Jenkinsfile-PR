@@ -57,3 +57,4 @@ for /f "tokens=*" %%i in ('docker ps -a -q --filter "ancestor=react-weather-app:
         }
     }
 }
+
