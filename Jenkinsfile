@@ -2,11 +2,12 @@ pipeline {
     agent any
     
     environment {
-        // Configuration
         IMAGE_NAME     = 'hibaaguir/react-weather-app'
-        // Nom fixe pour permettre le nettoyage automatique
         CONTAINER_NAME = 'weather-app-test-container'
         HOST_PORT      = '3001'
+        // CORRECTION 1 : On force CI=false ici pour que ce soit pris en compte globalement
+        // Cela empêche le build d'échouer sur des warnings ESLint (variables non utilisées, etc.)
+        CI             = 'false' 
     }
     
     stages {
@@ -20,7 +21,6 @@ pipeline {
         stage('Setup') {
             steps {
                 script {
-                    // Définition d'un tag unique pour l'image Docker
                     if (env.BRANCH_NAME == 'dev') {
                         env.BUILD_TAG = "dev-${env.BUILD_NUMBER}"
                     } else if (env.TAG_NAME) {
@@ -43,8 +43,8 @@ pipeline {
         stage('Build React App') {
             steps {
                 echo "🏗️ Compilation de l'application React..."
-                // "set CI=false" est important sous Windows pour ne pas échouer sur les warnings
-                bat 'set CI=false && npm run build'
+                // CORRECTION : Plus besoin de "set CI=false" ici car c'est dans l'environment global
+                bat 'npm run build'
             }
         }
 
@@ -58,16 +58,15 @@ pipeline {
         stage('Run Container (Test Environment)') {
             steps {
                 script {
-                    echo "🧹 Nettoyage préventif des anciens conteneurs..."
-                    // On essaie d'arrêter et supprimer le conteneur s'il existe déjà (évite l'erreur de port)
-                    bat "docker stop ${CONTAINER_NAME} || echo 'Aucun conteneur a arreter'"
-                    bat "docker rm ${CONTAINER_NAME} || echo 'Aucun conteneur a supprimer'"
+                    echo "🧹 Nettoyage préventif..."
+                    // CORRECTION 2 : Utilisation de "exit 0" pour forcer le succès sous Windows si le conteneur n'existe pas
+                    bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
+                    bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
                     
-                    echo "🚀 Démarrage du conteneur de test..."
-                    // IMPORTANT : Mapping du port 3001 vers 80 (car Nginx écoute sur le 80)
+                    echo "🚀 Démarrage du conteneur..."
                     bat "docker run -d -p ${HOST_PORT}:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:${BUILD_TAG}"
                     
-                    echo "⏳ Attente du démarrage de Nginx..."
+                    echo "⏳ Attente du démarrage..."
                     sleep(time: 10, unit: 'SECONDS')
                 }
             }
@@ -76,18 +75,16 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 script {
-                    echo "🧪 Vérification de la disponibilité..."
-                    // Vérifie simplement que le serveur renvoie un code 200 OK
+                    echo "🧪 Vérification de l'application..."
                     bat "curl -f http://localhost:${HOST_PORT} || exit 1"
-                    echo "✅ Smoke Test RÉUSSI : L'application répond sur le port ${HOST_PORT}"
+                    echo "✅ Smoke Test OK"
                 }
             }
         }
 
         stage('Archive Artifacts') {
             steps {
-                echo "💾 Archivage des fichiers..."
-                // Archive le dossier build généré par React
+                echo "💾 Archivage..."
                 archiveArtifacts artifacts: 'build/**/*', fingerprint: true
                 archiveArtifacts artifacts: 'Dockerfile', fingerprint: true
             }
@@ -97,12 +94,10 @@ pipeline {
     post {
         always {
             echo "🧹 Nettoyage final..."
-            // Arrêt propre du conteneur de test
-            bat "docker stop ${CONTAINER_NAME} || echo 'Déjà arrêté'"
-            bat "docker rm ${CONTAINER_NAME} || echo 'Déjà supprimé'"
-            
-            // Nettoyage des images "dangling" pour économiser de l'espace disque
-            bat "docker image prune -f || echo 'Rien a nettoyer'"
+            // CORRECTION 3 : Sécurisation du nettoyage final pour Windows
+            bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
+            bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
+            bat "docker image prune -f >NUL 2>&1 || exit 0"
         }
         success {
             echo "🎉 BUILD SUCCÈS - Version: ${BUILD_TAG}"
