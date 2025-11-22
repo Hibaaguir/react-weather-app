@@ -2,30 +2,20 @@
   "name": "react-weather-app",
   "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "@testing-library/jest-dom": "^5.16.5",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "gsap": "^3.13.0",
-    "i18next": "^25.6.3",
-    "moment": "^2.30.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-i18next": "^16.3.5",
-    "react-icons": "^5.5.0",
-    "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
-  },
-  "devDependencies": {
-    "axios": "^1.5.0",
-    "cross-env": "^10.1.0",
-    "typescript": "^4.9.5"
-  },
   "scripts": {
     "start": "react-scripts start",
-    "build:ci": "cross-env CI=false react-scripts build",
+    "build": "react-scripts build",
+    "build:ci": "set CI=false && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "^5.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.50.0"
   },
   "eslintConfig": {
     "extends": [

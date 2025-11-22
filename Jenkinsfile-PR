@@ -8,7 +8,6 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // Récupérer automatiquement la branche de la PR
                 checkout scm
             }
         }
@@ -21,10 +20,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                // Désactiver CI correctement sous Windows pour npm
-                bat 'set CI=false\nnpm run build'
-                // OU si tu as créé le script "build:ci" dans package.json :
-                // bat 'npm run build:ci'
+                bat 'npm run build:ci'
             }
         }
 
@@ -45,7 +41,7 @@ powershell -Command "$status = (Invoke-WebRequest -Uri http://localhost:3000 -Us
 
         stage('Archive Artifacts') {
             steps {
-                archiveArtifacts artifacts: 'build/**, logs/**', fingerprint: true
+                archiveArtifacts artifacts: 'build/**', fingerprint: true
             }
         }
 
