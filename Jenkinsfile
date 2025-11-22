@@ -5,8 +5,7 @@ pipeline {
         IMAGE_NAME     = 'hibaaguir/react-weather-app'
         CONTAINER_NAME = 'weather-app-test-container'
         HOST_PORT      = '3001'
-        // CORRECTION 1 : On force CI=false ici pour que ce soit pris en compte globalement
-        // Cela empêche le build d'échouer sur des warnings ESLint (variables non utilisées, etc.)
+        // CORRECTION 1 : On force CI=false pour éviter les échecs sur warnings
         CI             = 'false' 
     }
     
@@ -35,7 +34,13 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                echo "📦 Installation des dépendances..."
+                echo "🧹 Nettoyage des anciens modules corrompus..."
+                // CORRECTION IMPORTANTE : On supprime node_modules pour forcer une installation propre
+                // Cela corrige l'erreur "Cannot find module 'ajv'"
+                bat 'if exist node_modules rmdir /s /q node_modules'
+                bat 'if exist package-lock.json del package-lock.json'
+
+                echo "📦 Installation propre des dépendances..."
                 bat 'npm install --legacy-peer-deps'
             }
         }
@@ -43,7 +48,6 @@ pipeline {
         stage('Build React App') {
             steps {
                 echo "🏗️ Compilation de l'application React..."
-                // CORRECTION : Plus besoin de "set CI=false" ici car c'est dans l'environment global
                 bat 'npm run build'
             }
         }
@@ -59,7 +63,7 @@ pipeline {
             steps {
                 script {
                     echo "🧹 Nettoyage préventif..."
-                    // CORRECTION 2 : Utilisation de "exit 0" pour forcer le succès sous Windows si le conteneur n'existe pas
+                    // Force le succès si le conteneur n'existe pas
                     bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
                     bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
                     
@@ -94,7 +98,6 @@ pipeline {
     post {
         always {
             echo "🧹 Nettoyage final..."
-            // CORRECTION 3 : Sécurisation du nettoyage final pour Windows
             bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
             bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
             bat "docker image prune -f >NUL 2>&1 || exit 0"
@@ -106,4 +109,5 @@ pipeline {
             echo "❌ BUILD ÉCHOUÉ - Version: ${BUILD_TAG}"
         }
     }
+}
 }
