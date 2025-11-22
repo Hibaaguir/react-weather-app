@@ -5,7 +5,6 @@ pipeline {
         IMAGE_NAME     = 'hibaaguir/react-weather-app'
         CONTAINER_NAME = 'weather-app-test-container'
         HOST_PORT      = '3001'
-        // CORRECTION 1 : On force CI=false pour éviter les échecs sur warnings
         CI             = 'false' 
     }
     
@@ -34,9 +33,8 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                echo "🧹 Nettoyage des anciens modules corrompus..."
-                // CORRECTION IMPORTANTE : On supprime node_modules pour forcer une installation propre
-                // Cela corrige l'erreur "Cannot find module 'ajv'"
+                echo "🧹 Nettoyage des modules corrompus..."
+                // Nettoyage forcé pour éviter l'erreur AJV
                 bat 'if exist node_modules rmdir /s /q node_modules'
                 bat 'if exist package-lock.json del package-lock.json'
 
@@ -63,7 +61,6 @@ pipeline {
             steps {
                 script {
                     echo "🧹 Nettoyage préventif..."
-                    // Force le succès si le conteneur n'existe pas
                     bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
                     bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
                     
@@ -109,5 +106,4 @@ pipeline {
             echo "❌ BUILD ÉCHOUÉ - Version: ${BUILD_TAG}"
         }
     }
-}
 }
