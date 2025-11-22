@@ -8,8 +8,8 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // Récupérer la branche feature d'une PR
-                git branch: 'feature', url: 'https://github.com/Hibaaguir/react-weather-app.git'
+                // Récupérer automatiquement la branche de la PR
+                checkout scm
             }
         }
 
@@ -56,3 +56,4 @@ for /f "tokens=*" %%i in ('docker ps -a -q --filter "ancestor=react-weather-app:
         }
     }
 }
+
