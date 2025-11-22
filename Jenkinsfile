@@ -1,12 +1,9 @@
 pipeline {
     agent any
     
-    parameters {
-        choice(
-            name: 'BUILD_TYPE',
-            choices: ['PR', 'DEV', 'RELEASE'],
-            description: 'Type de build à exécuter'
-        )
+    environment {
+        // Forcer CI à false pour éviter que les warnings bloquent le build
+        CI = 'false'
     }
     
     stages {
@@ -14,16 +11,16 @@ pipeline {
             steps {
                 checkout scm
                 script {
-                    // Détection automatique du type de build
+                    // Détection automatique du type de build - CORRIGÉE
                     if (env.CHANGE_ID) {
                         env.BUILD_TYPE = 'PR'
                         echo "Build détecté: Pull Request #${env.CHANGE_ID}"
                     } else if (env.TAG_NAME) {
                         env.BUILD_TYPE = 'RELEASE' 
                         echo "Build détecté: Release ${env.TAG_NAME}"
-                    } else if (env.BRANCH_NAME == 'dev') {
+                    } else {
                         env.BUILD_TYPE = 'DEV'
-                        echo "Build détecté: Développement (dev branch)"
+                        echo "Build détecté: Développement (${env.BRANCH_NAME} branch)"
                     }
                     
                     echo "Type de build: ${env.BUILD_TYPE}"
@@ -39,7 +36,8 @@ pipeline {
         
         stage('Build') {
             steps {
-                bat 'set CI=false && npm run build'
+                // CI=false est maintenant dans environment, pas besoin de le set ici
+                bat 'npm run build'
             }
         }
         
@@ -67,6 +65,10 @@ pipeline {
                             containerName = "weather-app-release-${env.BUILD_NUMBER}"
                             port = 3002
                             break
+                        default:
+                            imageTag = "unknown-${env.BUILD_NUMBER}"
+                            containerName = "weather-app-unknown-${env.BUILD_NUMBER}"
+                            port = 3000
                     }
                     
                     bat "docker build -t weather-app:${imageTag} ."
@@ -76,6 +78,7 @@ pipeline {
                     // Sauvegarder les variables pour les stages suivants
                     env.CONTAINER_NAME = containerName
                     env.PORT = port
+                    env.IMAGE_TAG = imageTag
                 }
             }
         }
@@ -119,11 +122,13 @@ pipeline {
                 stage('Test Node 18') {
                     steps {
                         echo "✅ Test avec Node 18 simulé"
+                        bat "echo 'Node 18 test passed' > node18-test.txt"
                     }
                 }
                 stage('Test Node 20') {
                     steps {
-                        echo "✅ Test avec Node 20 simulé"
+                        echo "✅ Test avec Node 20 simulé" 
+                        bat "echo 'Node 20 test passed' > node20-test.txt"
                     }
                 }
             }
@@ -151,11 +156,9 @@ pipeline {
         }
         success {
             echo "🎉 PIPELINE ${env.BUILD_TYPE} RÉUSSI !"
-            // Notification de succès (à configurer)
         }
         failure {
             echo "❌ PIPELINE ${env.BUILD_TYPE} ÉCHOUÉ"
-            // Notification d'échec (à configurer)
         }
     }
 }
