@@ -33,13 +33,17 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                echo "🧹 Nettoyage des modules corrompus..."
-                // Nettoyage forcé pour éviter l'erreur AJV
+                echo "🧹 Nettoyage..."
                 bat 'if exist node_modules rmdir /s /q node_modules'
                 bat 'if exist package-lock.json del package-lock.json'
 
-                echo "📦 Installation propre des dépendances..."
+                echo "📦 Installation des dépendances..."
                 bat 'npm install --legacy-peer-deps'
+                
+                echo "🔧 CORRECTION DU BUG AJV..."
+                // C'est cette ligne qui va corriger ton erreur spécifique
+                // On force l'installation de AJV version 8 qui contient le fichier manquant "codegen"
+                bat 'npm install ajv@8.12.0 --legacy-peer-deps'
             }
         }
 
