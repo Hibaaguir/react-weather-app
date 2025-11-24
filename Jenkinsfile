@@ -48,14 +48,12 @@ pipeline {
                 stage('Unit Tests') {
                     steps {
                         echo "🧪 Lancement des tests unitaires..."
-                        // --passWithNoTests : Permet de réussir même sans fichier de test
                         bat 'npm test -- --watchAll=false --passWithNoTests'
                     }
                 }
                 stage('Linting') {
                     steps {
                         echo "🔍 Analyse du code (Lint)..."
-                        // --if-present : Ne plante pas si le script lint n'existe pas
                         bat 'npm run lint --if-present'
                     }
                 }
@@ -79,35 +77,44 @@ pipeline {
         stage('Run Container (Test Environment)') {
             steps {
                 script {
-                    echo "🧹 Nettoyage préventif (ancienne version)..."
+                    echo "🧹 Nettoyage préventif..."
                     bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
                     bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
                     
                     echo "🚀 Démarrage du conteneur..."
                     bat "docker run -d -p ${HOST_PORT}:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:${BUILD_TAG}"
                     
-                    echo "⏳ Attente du démarrage..."
-                    sleep(time: 15, unit: 'SECONDS')
+                    echo "⏳ Attente du démarrage (20s)..."
+                    sleep(time: 20, unit: 'SECONDS')
                 }
             }
         }
 
+        // --- CORRECTION MAJEURE ICI ---
         stage('Smoke Test') {
             steps {
                 script {
                     echo "🔥 Exécution du Smoke Test..."
-                    def result = bat(script: "curl -f http://localhost:${HOST_PORT}", returnStatus: true)
+                    echo "Vérification statut conteneur..."
+                    bat "docker ps -a --filter name=${CONTAINER_NAME}"
+
+                    // Changement: utilisation de 127.0.0.1 au lieu de localhost
+                    def result = bat(script: "curl -f http://127.0.0.1:${HOST_PORT}", returnStatus: true)
                     
                     if (result == 0) {
                         echo "✅ SMOKE TEST PASSED"
                         currentBuild.result = 'SUCCESS'
                     } else {
                         echo "❌ SMOKE TEST FAILED"
-                        error("L'application a échoué au smoke test.")
+                        echo "📜 --- LOGS DU CONTENEUR (DEBUG) ---"
+                        bat "docker logs ${CONTAINER_NAME}"
+                        echo "📜 --------------------------------"
+                        error("L'application n'est pas accessible sur le port ${HOST_PORT}.")
                     }
                 }
             }
         }
+        // ------------------------------
 
         stage('Archive Artifacts') {
             steps {
@@ -118,20 +125,17 @@ pipeline {
     }
 
     post {
-        // Cas d'échec : on nettoie pour ne pas laisser un conteneur cassé
         failure {
             echo "❌ ÉCHEC DU DEPLOIEMENT : Suppression du conteneur..."
             bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
             bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
         }
 
-        // Cas de succès : ON GARDE LE CONTENEUR ACTIF
         success {
             echo "🎉 DEPLOIEMENT RÉUSSI - Version: ${BUILD_TAG}"
             echo "✅ L'application tourne sur : http://localhost:${HOST_PORT}"
         }
 
-        // Nettoyage uniquement des images intermédiaires (gain de place)
         always {
             bat "docker image prune -f >NUL 2>&1 || exit 0"
         }
