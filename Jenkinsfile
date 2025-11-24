@@ -43,26 +43,24 @@ pipeline {
             }
         }
 
-        // --- CORRECTION ICI ---
         stage('Quality Checks (Parallel)') {
             parallel {
                 stage('Unit Tests') {
                     steps {
                         echo "🧪 Lancement des tests unitaires..."
-                        // Ajout de --passWithNoTests pour ne pas échouer si aucun test n'est trouvé
+                        // --passWithNoTests : Permet de réussir même sans fichier de test
                         bat 'npm test -- --watchAll=false --passWithNoTests'
                     }
                 }
                 stage('Linting') {
                     steps {
                         echo "🔍 Analyse du code (Lint)..."
-                        // Ajout de --if-present : exécute le script seulement s'il existe dans package.json
+                        // --if-present : Ne plante pas si le script lint n'existe pas
                         bat 'npm run lint --if-present'
                     }
                 }
             }
         }
-        // ----------------------
 
         stage('Build React App') {
             steps {
@@ -81,7 +79,7 @@ pipeline {
         stage('Run Container (Test Environment)') {
             steps {
                 script {
-                    echo "🧹 Nettoyage préventif..."
+                    echo "🧹 Nettoyage préventif (ancienne version)..."
                     bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
                     bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
                     
@@ -120,17 +118,22 @@ pipeline {
     }
 
     post {
-        always {
-            echo "🧹 Nettoyage final..."
+        // Cas d'échec : on nettoie pour ne pas laisser un conteneur cassé
+        failure {
+            echo "❌ ÉCHEC DU DEPLOIEMENT : Suppression du conteneur..."
             bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
             bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
-            bat "docker image prune -f >NUL 2>&1 || exit 0"
         }
+
+        // Cas de succès : ON GARDE LE CONTENEUR ACTIF
         success {
             echo "🎉 DEPLOIEMENT RÉUSSI - Version: ${BUILD_TAG}"
+            echo "✅ L'application tourne sur : http://localhost:${HOST_PORT}"
         }
-        failure {
-            echo "❌ ÉCHEC DU DEPLOIEMENT - Version: ${BUILD_TAG}"
+
+        // Nettoyage uniquement des images intermédiaires (gain de place)
+        always {
+            bat "docker image prune -f >NUL 2>&1 || exit 0"
         }
     }
 }
