@@ -5,7 +5,6 @@ pipeline {
         IMAGE_NAME     = 'hibaaguir/react-weather-app'
         CONTAINER_NAME = 'weather-app-test-container'
         HOST_PORT      = '3001'
-        // CI=false est nécessaire pour le build, mais attention aux tests (voir plus bas)
         CI             = 'false' 
     }
     
@@ -17,11 +16,9 @@ pipeline {
             }
         }
 
-        // CONDITION 1 : Versionning via tags (vX.Y.Z)
         stage('Setup Versioning') {
             steps {
                 script {
-                    // Si un TAG Git est détecté (ex: v1.0.0), on l'utilise comme version
                     if (env.TAG_NAME) {
                         env.BUILD_TAG = env.TAG_NAME
                         echo "🏷️ VERSION OFFICIELLE DÉTECTÉE : ${env.BUILD_TAG}"
@@ -42,37 +39,30 @@ pipeline {
 
                 echo "📦 Installation des dépendances..."
                 bat 'npm install --legacy-peer-deps'
-                
-                // Maintien du correctif pour ton erreur AJV précédente
                 bat 'npm install ajv@8.12.0 --legacy-peer-deps'
             }
         }
 
-        // CONDITION 2 : Exécution parallèle
-        // On lance les tests unitaires et le linting en même temps pour gagner du temps
+        // --- CORRECTION ICI ---
         stage('Quality Checks (Parallel)') {
             parallel {
                 stage('Unit Tests') {
                     steps {
                         echo "🧪 Lancement des tests unitaires..."
-                        // Note: On force watchAll=false pour que Jenkins ne reste pas bloqué
-                        // Le 'call' permet de ne pas faire échouer tout le pipeline si pas de tests configurés
-                        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                            bat 'npm test -- --watchAll=false'
-                        }
+                        // Ajout de --passWithNoTests pour ne pas échouer si aucun test n'est trouvé
+                        bat 'npm test -- --watchAll=false --passWithNoTests'
                     }
                 }
                 stage('Linting') {
                     steps {
                         echo "🔍 Analyse du code (Lint)..."
-                        // Essaye de lancer le lint, ignore si la commande n'existe pas dans package.json
-                        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                            bat 'npm run lint || echo Pas de script lint configuré'
-                        }
+                        // Ajout de --if-present : exécute le script seulement s'il existe dans package.json
+                        bat 'npm run lint --if-present'
                     }
                 }
             }
         }
+        // ----------------------
 
         stage('Build React App') {
             steps {
@@ -104,19 +94,17 @@ pipeline {
             }
         }
 
-        // CONDITION 3 : Vérifications “smoke” automatiques (Passed/Failed)
         stage('Smoke Test') {
             steps {
                 script {
                     echo "🔥 Exécution du Smoke Test..."
-                    // curl -f renvoie une erreur si le code HTTP est >= 400
                     def result = bat(script: "curl -f http://localhost:${HOST_PORT}", returnStatus: true)
                     
                     if (result == 0) {
-                        echo "✅ SMOKE TEST PASSED : L'application répond correctement."
+                        echo "✅ SMOKE TEST PASSED"
                         currentBuild.result = 'SUCCESS'
                     } else {
-                        echo "❌ SMOKE TEST FAILED : L'application ne répond pas."
+                        echo "❌ SMOKE TEST FAILED"
                         error("L'application a échoué au smoke test.")
                     }
                 }
