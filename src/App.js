@@ -5,6 +5,7 @@ import {
   TbMoon,
   TbSearch,
   TbSun,
+
 } from "react-icons/tb";
 import "./App.css";
 
@@ -23,7 +24,7 @@ function App() {
   const [noData, setNoData] = useState();
   const [searchTerm, setSearchTerm] = useState("");
   const [weatherData, setWeatherData] = useState([]);
-  const [city, setCity] = useState("Unknown Location"); // Valeur par défaut
+  const [city, setCity] = useState();
   const [weatherIcon, setWeatherIcon] = useState(
     `https://openweathermap.org/img/wn/10n@2x.png`
   );
@@ -40,7 +41,7 @@ function App() {
   const [active, setActive] = useState(false);
   const [isDark, setIsDark] = useState(false);
 
-  // --- CORRECTION 2 : Gestion correcte du Thème ---
+  // code logic
   useEffect(() => {
     if (isDark) {
       document.body.classList.add("dark");
@@ -49,6 +50,7 @@ function App() {
     }
   }, [isDark]);
 
+  //setting themee according to device
   useEffect(() => {
     if (
       window.matchMedia &&
@@ -56,7 +58,13 @@ function App() {
     ) {
       setIsDark(true);
     }
-  }, []);
+
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", (event) => {
+        setIsDark(event.matches);
+      });
+  }, [setIsDark]);
 
   const toggleDark = () => {
     setIsDark((prev) => !prev);
@@ -83,13 +91,6 @@ function App() {
         ? `q=${location}`
         : `lat=${location[0]}&lon=${location[1]}`;
 
-    // On s'assure que la clé API est bien là, sinon on log une erreur
-    if (!API_KEY) {
-        console.error("API KEY manquante ! Vérifiez le build Jenkins.");
-        setLoading(false);
-        return;
-    }
-
     const url = "https://api.openweathermap.org/data/2.5/forecast?";
     try {
       let res = await fetch(
@@ -115,7 +116,7 @@ function App() {
         }@4x.png`
       );
     } catch (error) {
-      setLoading(false); // Important de stopper le loading en cas d'erreur
+      setLoading(true);
       console.log(error);
     }
   };
@@ -131,41 +132,43 @@ function App() {
 
   useEffect(() => {
     const loadCountries = async () => {
-      try {
-        const response = await axios.get("https://restcountries.com/v3.1/all");
-        let arr = [];
-        response.data.forEach((element) => {
-          arr.push(element.name.official);
-        });
-        setCountries(arr);
-      } catch (error) {
-        console.log("Erreur chargement pays:", error);
-      }
+      const response = await axios.get("https://restcountries.com/v3.1/all");
+      let arr = [];
+      response.data.forEach((element) => {
+        arr.push(element.name.official);
+      });
+      setCountries(arr);
+      console.log(arr);
     };
+
     loadCountries();
   }, []);
 
+  // console.log(countries);
+
   const searchCountries = (input) => {
+    // const {value}=input.target;
     setSearchTerm(input);
+
     if (!input) {
+      // created if-else loop for matching countries according to the input
       setCountryMatch([]);
     } else {
       let matches = countries.filter((country) => {
+        // eslint-disable-next-line no-template-curly-in-string
         const regex = new RegExp(`${input}`, "gi");
-        return country.match(regex);
+        // console.log(regex)
+        return country.match(regex) || country.match(regex);
       });
       setCountryMatch(matches);
     }
+    // console.log(countryMatch);
   };
 
-  // --- CORRECTION 1 : Remplacement de window.load par useEffect ---
-  // Cela lance la météo locale au démarrage de l'app de façon fiable
-  useEffect(() => {
-     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(myIP);
-     }
-  // eslint-disable-next-line
-  }, []);
+  // load current location weather info on load
+  window.addEventListener("load", function () {
+    navigator.geolocation.getCurrentPosition(myIP);
+  });
 
   return (
     <div className="container">
@@ -208,11 +211,8 @@ function App() {
                 <div className="ball" />
               </label>
             </div>
-            
-            {/* --- CORRECTION 3 : Affichage de la ville --- */}
             <div className="city">
               <TbMapSearch />
-              <p style={{ marginLeft: "10px" }}>{city}</p>
             </div>
           </div>
 
@@ -242,11 +242,10 @@ function App() {
                 className="input_search"
               />
 
-              <button className="s-icon" type="button">
+              <button className="s-icon">
                 <TbSearch
                   onClick={() => {
-                    // --- CORRECTION DE LA TYPO (Position) ---
-                    navigator.geolocation.getCurrentPosition(myIP);
+                    navigator.geolocation.getCurrentPositon(myIP);
                   }}
                 />
               </button>
