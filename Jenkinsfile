@@ -5,11 +5,8 @@ pipeline {
         IMAGE_NAME     = 'hibaaguir/react-weather-app'
         CONTAINER_NAME = 'weather-app-test-container'
         HOST_PORT      = '3001'
-        CI             = 'false'
-        
-        // --- CORRECTION ICI ---
-        // On ajoute la clé API pour qu'elle soit visible pendant le 'npm run build'
-        REACT_APP_API_KEY = '35ab6beb19578ca806a2bf1aa82cfead'
+        // CI=false est nécessaire pour le build, mais attention aux tests (voir plus bas)
+        CI             = 'false' 
     }
     
     stages {
@@ -20,9 +17,11 @@ pipeline {
             }
         }
 
+        // CONDITION 1 : Versionning via tags (vX.Y.Z)
         stage('Setup Versioning') {
             steps {
                 script {
+                    // Si un TAG Git est détecté (ex: v1.0.0), on l'utilise comme version
                     if (env.TAG_NAME) {
                         env.BUILD_TAG = env.TAG_NAME
                         echo "🏷️ VERSION OFFICIELLE DÉTECTÉE : ${env.BUILD_TAG}"
@@ -43,15 +42,21 @@ pipeline {
 
                 echo "📦 Installation des dépendances..."
                 bat 'npm install --legacy-peer-deps'
+                
+                // Maintien du correctif pour ton erreur AJV précédente
                 bat 'npm install ajv@8.12.0 --legacy-peer-deps'
             }
         }
 
+        // CONDITION 2 : Exécution parallèle
+        // On lance les tests unitaires et le linting en même temps pour gagner du temps
         stage('Quality Checks (Parallel)') {
             parallel {
                 stage('Unit Tests') {
                     steps {
                         echo "🧪 Lancement des tests unitaires..."
+                        // Note: On force watchAll=false pour que Jenkins ne reste pas bloqué
+                        // Le 'call' permet de ne pas faire échouer tout le pipeline si pas de tests configurés
                         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                             bat 'npm test -- --watchAll=false'
                         }
@@ -60,6 +65,7 @@ pipeline {
                 stage('Linting') {
                     steps {
                         echo "🔍 Analyse du code (Lint)..."
+                        // Essaye de lancer le lint, ignore si la commande n'existe pas dans package.json
                         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                             bat 'npm run lint || echo Pas de script lint configuré'
                         }
@@ -71,7 +77,6 @@ pipeline {
         stage('Build React App') {
             steps {
                 echo "🏗️ Compilation de l'application React..."
-                // La variable REACT_APP_API_KEY définie en haut sera injectée ici automatiquement
                 bat 'npm run build'
             }
         }
@@ -99,10 +104,12 @@ pipeline {
             }
         }
 
+        // CONDITION 3 : Vérifications “smoke” automatiques (Passed/Failed)
         stage('Smoke Test') {
             steps {
                 script {
                     echo "🔥 Exécution du Smoke Test..."
+                    // curl -f renvoie une erreur si le code HTTP est >= 400
                     def result = bat(script: "curl -f http://localhost:${HOST_PORT}", returnStatus: true)
                     
                     if (result == 0) {
@@ -125,20 +132,14 @@ pipeline {
     }
 
     post {
-        // ATTENTION : J'ai commenté le nettoyage 'always'
-        // Si tu laisses ça, le site est détruit dès que le test finit.
-        // Décommente-le seulement si tu veux que Jenkins nettoie tout après.
-        
-        // always {
-        //    echo "🧹 Nettoyage final..."
-        //    bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
-        //    bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
-        //    bat "docker image prune -f >NUL 2>&1 || exit 0"
-        // }
-        
+        always {
+            echo "🧹 Nettoyage final..."
+            bat "docker stop ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
+            bat "docker rm ${CONTAINER_NAME} >NUL 2>&1 || exit 0"
+            bat "docker image prune -f >NUL 2>&1 || exit 0"
+        }
         success {
             echo "🎉 DEPLOIEMENT RÉUSSI - Version: ${BUILD_TAG}"
-            echo "✅ L'application est accessible sur : http://localhost:${HOST_PORT}"
         }
         failure {
             echo "❌ ÉCHEC DU DEPLOIEMENT - Version: ${BUILD_TAG}"
