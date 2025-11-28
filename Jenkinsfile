@@ -7,8 +7,7 @@ pipeline {
         HOST_PORT      = '3001'
         CI             = 'false'
         
-        // --- CORRECTION ICI ---
-        // On ajoute la clé API pour qu'elle soit visible pendant le 'npm run build'
+       
         REACT_APP_API_KEY = '35ab6beb19578ca806a2bf1aa82cfead'
     }
     
